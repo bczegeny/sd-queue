@@ -113,19 +113,18 @@ def async_api(_: gr.Blocks, app: FastAPI):
                 logger.warning(f"No 'images' key found in result for task {task_id}")
         else:
             logger.warning(f"No 'result' key found for completed task {task_id}")
+    elif task["status"] == "in-progress":
+        route = next((route for route in request.app.routes if route.path == "/sdapi/v1/progress"), None)
+        if route:
+            progressreq = models.ProgressRequest(skip_current_image=False)
+            info = route.endpoint(progressreq)
+            response["progress"] = info.progress
+            response["eta_relative"] = info.eta_relative
+        else:
+            logger.warning("Route /sdapi/v1/progress not found")
 
-        elif task["status"] == "in-progress":
-            route = next((route for route in request.app.routes if route.path == "/sdapi/v1/progress"), None)
-            if route:
-                progressreq = models.ProgressRequest(skip_current_image=False)
-                info = route.endpoint(progressreq)
-                response["progress"] = info.progress
-                response["eta_relative"] = info.eta_relative
-            else:
-                logger.warning("Route /sdapi/v1/progress not found")
-
-        logger.info(f"Final response for task {task_id}: {response}")
-        return response
+    logger.info(f"Final response for task {task_id}: {response}")
+    return response
 
     @app.delete("/sd-queue/{task_id}/remove", dependencies=get_auth_dependency())
     async def remove_specific_task(task_id: str):
