@@ -19,6 +19,7 @@ class TaskManager:
             if task_id in self.tasks_db:
                 self.tasks_db[task_id]["status"] = status
                 if result is not None:
+                    logger.info(f"Raw result for task {task_id}: {result}")
                     self.tasks_db[task_id]["result"] = result
                     logger.info(f"Updated task {task_id} status to {status}. Result type: {type(result)}")
                     if isinstance(result, dict):
@@ -42,6 +43,7 @@ class TaskManager:
                 try:
                     self._update_status(task_id, "in-progress")
                     result = func(*args)
+                    logger.info(f"Raw result from function for task {task_id}: {result}")
                     self._update_status(task_id, "completed", result)
                     logger.info(f"Task {task_id} completed")
                 except Exception as e:
@@ -61,7 +63,7 @@ class TaskManager:
     def add_task(self, func, *args):
         with self.lock:
             if len(self.tasks_db) >= self.max_task:
-                # 最も古いタス��を探す
+                # 最も古いタスを探す
                 oldest_task_id = next(iter(self.tasks_db))
                 oldest_task = self.tasks_db[oldest_task_id]
 
