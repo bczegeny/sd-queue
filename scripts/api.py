@@ -80,8 +80,31 @@ def async_api(_: gr.Blocks, app: FastAPI):
                 if "images" in task["result"]:
                     logger.info(f"Images found in result for task {task_id}")
                     if isinstance(task["result"]["images"], list) and len(task["result"]["images"]) > 0:
-                        # Process and save image as before
-                        # ...
+                        # Assuming the first image is the main one
+                        image_data = task["result"]["images"][0]
+
+                        # Create the directory if it doesn't exist
+                        today = datetime.now().strftime("%Y-%m-%d")
+                        save_dir = os.path.join("outputs", "txt2img-images", today)
+                        os.makedirs(save_dir, exist_ok=True)
+
+                        # Save the image
+                        image_filename = f"{task_id}.png"
+                        image_path = os.path.join(save_dir, image_filename)
+
+                        try:
+                            with open(image_path, "wb") as image_file:
+                                image_file.write(base64.b64decode(image_data))
+
+                            logger.info(f"Image saved for task {task_id}: {image_path}")
+
+                            # Construct the full URL to the image
+                            relative_path = os.path.join("outputs", "txt2img-images", today, image_filename)
+                            image_url = f"{request.base_url}file={relative_path}"
+                            response["image_url"] = image_url
+                            logger.info(f"Image URL for task {task_id}: {image_url}")
+                        except Exception as e:
+                            logger.error(f"Error saving image for task {task_id}: {str(e)}")
                     else:
                         logger.warning(f"Images list is empty for task {task_id}")
                 else:
