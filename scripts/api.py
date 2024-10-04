@@ -1,6 +1,7 @@
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Depends
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import gradio as gr
+import logging
 
 from modules.api import api, models
 from modules import script_callbacks
@@ -14,6 +15,9 @@ import requests
 version = "0.0.1"
 
 task_manager = TaskManager()
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def async_api(_: gr.Blocks, app: FastAPI):
     if shared.cmd_opts.api_auth:
@@ -65,13 +69,18 @@ def async_api(_: gr.Blocks, app: FastAPI):
 
         if task["status"] == "completed":
             response["result"] = task["result"]
+            logger.info(f"Task {task_id} completed. Result: {task['result']}")
             # Add the image URL to the response
             if "images" in task["result"] and len(task["result"]["images"]) > 0:
                 # Assuming the first image is the main one
                 image_path = task["result"]["images"][0]
+                logger.info(f"Image path for task {task_id}: {image_path}")
                 # Construct the full URL to the image
                 image_url = f"{request.base_url}file={image_path}"
                 response["image_url"] = image_url
+                logger.info(f"Image URL for task {task_id}: {image_url}")
+            else:
+                logger.warning(f"No images found in result for task {task_id}")
         elif task["status"] == "in-progress":
             route = next((route for route in request.app.routes if route.path == "/sdapi/v1/progress"), None)
             if route:
@@ -82,6 +91,7 @@ def async_api(_: gr.Blocks, app: FastAPI):
             else:
                 print("Route /sdapi/v1/progress not found")
 
+        logger.info(f"Response for task {task_id}: {response}")
         return response
 
     @app.delete("/sd-queue/{task_id}/remove", dependencies=get_auth_dependency())
