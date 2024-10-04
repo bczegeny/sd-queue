@@ -71,11 +71,9 @@ def async_api(_: gr.Blocks, app: FastAPI):
             response["queue_position"] = task["queue_position"]
 
         if task["status"] == "completed":
-            logger.warning(f"Task {task_id} completed. Result: {task['result']}")
-            response["result"] = task["result"]
-            logger.info(f"Task {task_id} completed. Result: {task['result']}")
+            logger.warning(f"Task {task_id} completed. Processing result...")
 
-            # Add the image URL to the response
+            # Handle image saving and URL generation
             if "images" in task["result"] and len(task["result"]["images"]) > 0:
                 # Assuming the first image is the main one
                 image_data = task["result"]["images"][0]
@@ -92,15 +90,23 @@ def async_api(_: gr.Blocks, app: FastAPI):
                 with open(image_path, "wb") as image_file:
                     image_file.write(base64.b64decode(image_data))
 
-                logger.info(f"Image saved for task {task_id}: {image_path}")
+                logger.warning(f"Image saved for task {task_id}: {image_path}")
 
                 # Construct the full URL to the image
                 relative_path = os.path.join("outputs", "txt2img-images", today, image_filename)
                 image_url = f"{request.base_url}file={relative_path}"
                 response["image_url"] = image_url
-                logger.info(f"Image URL for task {task_id}: {image_url}")
+                logger.warning(f"Image URL for task {task_id}: {image_url}")
+
+                # Remove the base64 image data from the result to reduce response size
+                task["result"]["images"] = ["<image_data_removed>"]
             else:
                 logger.warning(f"No images found in result for task {task_id}")
+
+            # Now set the result in the response
+            response["result"] = task["result"]
+            logger.warning(f"Task {task_id} result processed and added to response")
+
         elif task["status"] == "in-progress":
             route = next((route for route in request.app.routes if route.path == "/sdapi/v1/progress"), None)
             if route:
@@ -111,7 +117,7 @@ def async_api(_: gr.Blocks, app: FastAPI):
             else:
                 logger.warning("Route /sdapi/v1/progress not found")
 
-        logger.warning(f"Response for task {task_id}: {response}")
+        logger.info(f"Response for task {task_id}: {response}")
         return response
 
     @app.delete("/sd-queue/{task_id}/remove", dependencies=get_auth_dependency())
