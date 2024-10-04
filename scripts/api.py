@@ -65,21 +65,20 @@ def async_api(_: gr.Blocks, app: FastAPI):
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
 
+        logger.info(f"Raw task object for task {task_id}: {task}")
+
         response = {"status": task["status"]}
 
         if "queue_position" in task:
             response["queue_position"] = task["queue_position"]
 
         if task["status"] == "completed":
-            response["result"] = task["result"]
-            logger.info(f"Task {task_id} completed. Result: {task['result']}")
-
-            # Add the image URL to the response
-            if "result" in task and isinstance(task["result"], dict):
+            if "result" in task:
                 result = task["result"]
-                logger.info(f"Result for task {task_id}: {result}")
+                response["result"] = result
+                logger.info(f"Task {task_id} completed. Result: {result}")
 
-                if "images" in result:
+                if isinstance(result, dict) and "images" in result:
                     images = result["images"]
                     logger.info(f"Images for task {task_id}: {images}")
 
@@ -114,7 +113,7 @@ def async_api(_: gr.Blocks, app: FastAPI):
                 else:
                     logger.warning(f"No 'images' key found in result for task {task_id}")
             else:
-                logger.warning(f"No 'result' key or invalid result type for task {task_id}")
+                logger.warning(f"No 'result' key found in task for task {task_id}")
 
         elif task["status"] == "in-progress":
             route = next((route for route in request.app.routes if route.path == "/sdapi/v1/progress"), None)

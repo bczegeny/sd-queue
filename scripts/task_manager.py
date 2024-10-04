@@ -20,14 +20,13 @@ class TaskManager:
                 self.tasks_db[task_id]["status"] = status
                 if result is not None:
                     self.tasks_db[task_id]["result"] = result
+                    logger.info(f"Updated task {task_id} status to {status}. Result type: {type(result)}")
                     if isinstance(result, dict):
-                        logger.info(f"Updated task {task_id} status to {status}. Result keys: {result.keys()}")
+                        logger.info(f"Result keys for task {task_id}: {result.keys()}")
                         if "images" in result:
                             logger.info(f"Number of images in result for task {task_id}: {len(result['images'])}")
-                    else:
-                        logger.info(f"Updated task {task_id} status to {status}. Result type: {type(result)}")
                 else:
-                    logger.info(f"Updated task {task_id} status to {status}")
+                    logger.info(f"Updated task {task_id} status to {status} without result")
             else:
                 logger.warning(f"Attempted to update non-existent task {task_id}")
 
@@ -86,6 +85,10 @@ class TaskManager:
                 else:
                     task['queue_position'] = None
                 logger.info(f"Retrieved status for task {task_id}: {task['status']}")
+                if 'result' in task:
+                    logger.info(f"Result type for task {task_id}: {type(task['result'])}")
+                    if isinstance(task['result'], dict):
+                        logger.info(f"Result keys for task {task_id}: {task['result'].keys()}")
             else:
                 logger.warning(f"Attempted to get status for non-existent task {task_id}")
         return task
