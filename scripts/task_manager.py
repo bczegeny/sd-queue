@@ -25,6 +25,10 @@ class TaskManager:
                         logger.info(f"Result keys for task {task_id}: {result.keys()}")
                         if "images" in result:
                             logger.info(f"Number of images in result for task {task_id}: {len(result['images'])}")
+                        else:
+                            logger.warning(f"No 'images' key in result dict for task {task_id}")
+                    else:
+                        logger.warning(f"Result is not a dict for task {task_id}")
                 else:
                     logger.info(f"Updated task {task_id} status to {status} without result")
             else:
@@ -57,7 +61,7 @@ class TaskManager:
     def add_task(self, func, *args):
         with self.lock:
             if len(self.tasks_db) >= self.max_task:
-                # 最も古いタスクを探す
+                # 最も古いタス��を探す
                 oldest_task_id = next(iter(self.tasks_db))
                 oldest_task = self.tasks_db[oldest_task_id]
 
@@ -78,6 +82,7 @@ class TaskManager:
         with self.lock:
             task = self.tasks_db.get(task_id)
             if task:
+                logger.info(f"Raw task data for {task_id}: {task}")
                 if task['status'] == 'pending':
                     pending_tasks = [tid for _, _, tid in self.tasks_queue if self.tasks_db[tid]['status'] == 'pending']
                     queue_position = pending_tasks.index(task_id) + 1
@@ -89,6 +94,14 @@ class TaskManager:
                     logger.info(f"Result type for task {task_id}: {type(task['result'])}")
                     if isinstance(task['result'], dict):
                         logger.info(f"Result keys for task {task_id}: {task['result'].keys()}")
+                        if 'images' in task['result']:
+                            logger.info(f"Number of images in result for task {task_id}: {len(task['result']['images'])}")
+                        else:
+                            logger.warning(f"No 'images' key in result dict for task {task_id}")
+                    else:
+                        logger.warning(f"Result is not a dict for task {task_id}")
+                else:
+                    logger.warning(f"No 'result' key in task for task {task_id}")
             else:
                 logger.warning(f"Attempted to get status for non-existent task {task_id}")
         return task
