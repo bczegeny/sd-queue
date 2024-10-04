@@ -1,6 +1,9 @@
 import uuid
 import threading
 from collections import OrderedDict, deque
+import logging
+
+logger = logging.getLogger(__name__)
 
 class TaskManager:
     def __init__(self, max_task=30):
@@ -17,6 +20,9 @@ class TaskManager:
                 self.tasks_db[task_id]["status"] = status
                 if result is not None:
                     self.tasks_db[task_id]["result"] = result
+                logger.info(f"Updated task {task_id} status to {status}")
+            else:
+                logger.warning(f"Attempted to update non-existent task {task_id}")
 
     def _worker(self):
         while not self.stop_worker.is_set():
@@ -27,8 +33,10 @@ class TaskManager:
                     self._update_status(task_id, "in-progress")
                     result = func(*args)
                     self._update_status(task_id, "completed", result)
+                    logger.info(f"Task {task_id} completed")
                 except Exception as e:
                     self._update_status(task_id, "failed", result=str(e))
+                    logger.error(f"Task {task_id} failed: {str(e)}")
             else:
                 self.stop_worker.wait(timeout=0.1)
 
@@ -46,17 +54,18 @@ class TaskManager:
                 # 最も古いタスクを探す
                 oldest_task_id = next(iter(self.tasks_db))
                 oldest_task = self.tasks_db[oldest_task_id]
-                
+
                 if oldest_task['status'] in ['in-progress', 'pending']:
                     return None, False
-                
+
                 self.tasks_db.popitem(last=False)
                 self.tasks_queue = deque((f, a, tid) for f, a, tid in self.tasks_queue if tid != oldest_task_id)
-    
+
             task_id = str(uuid.uuid4())
             self.tasks_db[task_id] = {"status": "pending", "result": None}
             self.tasks_queue.append((func, args, task_id))
-            
+            logger.info(f"Added new task {task_id}")
+
         return task_id, True
 
     def get_status(self, task_id):
@@ -65,10 +74,13 @@ class TaskManager:
             if task:
                 if task['status'] == 'pending':
                     pending_tasks = [tid for _, _, tid in self.tasks_queue if self.tasks_db[tid]['status'] == 'pending']
-                    queue_position = pending_tasks.index(task_id) + 1 
+                    queue_position = pending_tasks.index(task_id) + 1
                     task['queue_position'] = queue_position
                 else:
                     task['queue_position'] = None
+                logger.info(f"Retrieved status for task {task_id}: {task['status']}")
+            else:
+                logger.warning(f"Attempted to get status for non-existent task {task_id}")
         return task
 
     def get_all_tasks(self):
@@ -80,5 +92,8 @@ class TaskManager:
             if task_id in self.tasks_db and self.tasks_db[task_id]["status"] == "pending":
                 del self.tasks_db[task_id]
                 self.tasks_queue = deque(item for item in self.tasks_queue if item[2] != task_id)
+                logger.info(f"Removed task {task_id}")
                 return True
+            else:
+                logger.warning(f"Attempted to remove non-existent or non-pending task {task_id}")
         return False
