@@ -20,7 +20,14 @@ class TaskManager:
                 self.tasks_db[task_id]["status"] = status
                 if result is not None:
                     self.tasks_db[task_id]["result"] = result
-                logger.info(f"Updated task {task_id} status to {status}")
+                    if isinstance(result, dict):
+                        logger.info(f"Updated task {task_id} status to {status}. Result keys: {result.keys()}")
+                        if "images" in result:
+                            logger.info(f"Number of images in result for task {task_id}: {len(result['images'])}")
+                    else:
+                        logger.info(f"Updated task {task_id} status to {status}. Result type: {type(result)}")
+                else:
+                    logger.info(f"Updated task {task_id} status to {status}")
             else:
                 logger.warning(f"Attempted to update non-existent task {task_id}")
 
