@@ -19,7 +19,7 @@ class TaskManager:
             if task_id in self.tasks_db:
                 self.tasks_db[task_id]["status"] = status
                 if result is not None:
-                    logger.info(f"Raw result for task {task_id}: {result}")
+                    logger.info(f"Raw result for task {task_id}: {type(result)}")
                     self.tasks_db[task_id]["result"] = result
                     logger.info(f"Updated task {task_id} status to {status}. Result type: {type(result)}")
                     if isinstance(result, dict):
@@ -29,7 +29,7 @@ class TaskManager:
                         else:
                             logger.warning(f"No 'images' key in result dict for task {task_id}")
                     else:
-                        logger.warning(f"Result is not a dict for task {task_id}")
+                        logger.warning(f"Result is not a dict for task {task_id}. Type: {type(result)}")
                 else:
                     logger.info(f"Updated task {task_id} status to {status} without result")
             else:

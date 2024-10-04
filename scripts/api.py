@@ -5,6 +5,8 @@ import logging
 import base64
 import os
 from datetime import datetime
+import json
+import ast
 
 from modules.api import api, models
 from modules import script_callbacks
@@ -75,7 +77,15 @@ def async_api(_: gr.Blocks, app: FastAPI):
         if task["status"] == "completed":
             if "result" in task:
                 result = task["result"]
-                logger.info(f"Task {task_id} completed. Raw result: {result}")
+                logger.info(f"Task {task_id} completed. Raw result type: {type(result)}")
+
+                # If result is a string, try to parse it
+                if isinstance(result, str):
+                    try:
+                        result = ast.literal_eval(result)
+                        logger.info(f"Parsed result type: {type(result)}")
+                    except:
+                        logger.warning(f"Failed to parse result string for task {task_id}")
 
                 if isinstance(result, dict):
                     response["result"] = result
