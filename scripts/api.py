@@ -15,13 +15,13 @@ version = "0.0.1"
 
 task_manager = TaskManager()
 
-def async_api(_: gr.Blocks, app: FastAPI):    
+def async_api(_: gr.Blocks, app: FastAPI):
     if shared.cmd_opts.api_auth:
         opts_credentials = {}
         for auth in shared.cmd_opts.api_auth.split(","):
             user, password = auth.split(":")
             opts_credentials[user] = password
-    
+
     def auth(credentials: HTTPBasicCredentials = Depends(HTTPBasic())):
         if credentials.username in opts_credentials:
             if compare_digest(credentials.password, opts_credentials[credentials.username]):
@@ -31,16 +31,16 @@ def async_api(_: gr.Blocks, app: FastAPI):
 
     def auth_required():
         return shared.cmd_opts.api_auth is not False and shared.cmd_opts.api_auth is not None
-    
+
     def get_auth_dependency():
         if auth_required():
             return [Depends(auth)]
         return []
-    
+
     @app.get("/sd-queue/login", dependencies=get_auth_dependency())
     async def login():
         return {"status": True, "version": version}
-    
+
     @app.post("/sd-queue/txt2img", dependencies=get_auth_dependency())
     async def txt2imgapi(request: Request, txt2imgreq: models.StableDiffusionTxt2ImgProcessingAPI):
         route = next((route for route in request.app.routes if route.path == "/sdapi/v1/txt2img"), None)
@@ -65,6 +65,13 @@ def async_api(_: gr.Blocks, app: FastAPI):
 
         if task["status"] == "completed":
             response["result"] = task["result"]
+            # Add the image URL to the response
+            if "images" in task["result"] and len(task["result"]["images"]) > 0:
+                # Assuming the first image is the main one
+                image_path = task["result"]["images"][0]
+                # Construct the full URL to the image
+                image_url = f"{request.base_url}file={image_path}"
+                response["image_url"] = image_url
         elif task["status"] == "in-progress":
             route = next((route for route in request.app.routes if route.path == "/sdapi/v1/progress"), None)
             if route:
@@ -74,7 +81,7 @@ def async_api(_: gr.Blocks, app: FastAPI):
                 response["eta_relative"] = info.eta_relative
             else:
                 print("Route /sdapi/v1/progress not found")
-        
+
         return response
 
     @app.delete("/sd-queue/{task_id}/remove", dependencies=get_auth_dependency())
