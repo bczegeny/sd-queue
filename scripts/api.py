@@ -61,58 +61,45 @@ def async_api(_: gr.Blocks, app: FastAPI):
 
     @app.get("/sd-queue/{task_id}/status", dependencies=get_auth_dependency())
     async def get_task_status(task_id: str, request: Request):
-        logger.info(f"Retrieving status for task {task_id}")
         task = task_manager.get_status(task_id)
         if not task:
-            logger.warning(f"Task {task_id} not found")
             raise HTTPException(status_code=404, detail="Task not found")
 
         response = {"status": task["status"]}
-        logger.info(f"Task {task_id} status: {task['status']}")
 
         if "queue_position" in task:
             response["queue_position"] = task["queue_position"]
 
         if task["status"] == "completed":
-            logger.info(f"Task {task_id} completed. Processing result.")
-            if "result" in task:
-                response["result"] = task["result"]
-                logger.info(f"Result keys for task {task_id}: {task['result'].keys()}")
-                if "images" in task["result"]:
-                    logger.info(f"Images found in result for task {task_id}. Number of images: {len(task['result']['images'])}")
-                    if isinstance(task["result"]["images"], list) and len(task["result"]["images"]) > 0:
-                        # Assuming the first image is the main one
-                        image_data = task["result"]["images"][0]
-                        logger.info(f"Image data length for task {task_id}: {len(image_data)}")
+            response["result"] = task["result"]
+            logger.info(f"Task {task_id} completed. Result: {task['result']}")
 
-                        # Create the directory if it doesn't exist
-                        today = datetime.now().strftime("%Y-%m-%d")
-                        save_dir = os.path.join("outputs", "txt2img-images", today)
-                        os.makedirs(save_dir, exist_ok=True)
+            # Add the image URL to the response
+            if "images" in task["result"] and len(task["result"]["images"]) > 0:
+                # Assuming the first image is the main one
+                image_data = task["result"]["images"][0]
 
-                        # Save the image
-                        image_filename = f"{task_id}.png"
-                        image_path = os.path.join(save_dir, image_filename)
+                # Create the directory if it doesn't exist
+                today = datetime.now().strftime("%Y-%m-%d")
+                save_dir = os.path.join("outputs", "txt2img-images", today)
+                os.makedirs(save_dir, exist_ok=True)
 
-                        try:
-                            with open(image_path, "wb") as image_file:
-                                image_file.write(base64.b64decode(image_data))
+                # Save the image
+                image_filename = f"{task_id}.png"
+                image_path = os.path.join(save_dir, image_filename)
 
-                            logger.info(f"Image saved for task {task_id}: {image_path}")
+                with open(image_path, "wb") as image_file:
+                    image_file.write(base64.b64decode(image_data))
 
-                            # Construct the full URL to the image
-                            relative_path = os.path.join("outputs", "txt2img-images", today, image_filename)
-                            image_url = f"{request.base_url}file={relative_path}"
-                            response["image_url"] = image_url
-                            logger.info(f"Image URL for task {task_id}: {image_url}")
-                        except Exception as e:
-                            logger.error(f"Error saving image for task {task_id}: {str(e)}")
-                else:
-                    logger.warning(f"Images list is empty for task {task_id}")
+                logger.info(f"Image saved for task {task_id}: {image_path}")
+
+                # Construct the full URL to the image
+                relative_path = os.path.join("outputs", "txt2img-images", today, image_filename)
+                image_url = f"{request.base_url}file={relative_path}"
+                response["image_url"] = image_url
+                logger.info(f"Image URL for task {task_id}: {image_url}")
             else:
-                logger.warning(f"No 'images' key found in result for task {task_id}")
-        else:
-            logger.warning(f"No 'result' key found for completed task {task_id}")
+                logger.warning(f"No images found in result for task {task_id}")
         elif task["status"] == "in-progress":
             route = next((route for route in request.app.routes if route.path == "/sdapi/v1/progress"), None)
             if route:
@@ -123,7 +110,7 @@ def async_api(_: gr.Blocks, app: FastAPI):
             else:
                 logger.warning("Route /sdapi/v1/progress not found")
 
-        logger.info(f"Final response for task {task_id}: {response}")
+        logger.info(f"Response for task {task_id}: {response}")
         return response
 
     @app.delete("/sd-queue/{task_id}/remove", dependencies=get_auth_dependency())
