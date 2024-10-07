@@ -3,7 +3,7 @@ import threading
 from collections import OrderedDict, deque
 
 class TaskManager:
-    def __init__(self, max_task=30):
+    def __init__(self, max_task=200):
         self.max_task = max_task
         self.tasks_db = OrderedDict()
         self.tasks_queue = deque()
